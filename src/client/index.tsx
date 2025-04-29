@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { usePartySocket } from "partysocket/react";
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -17,6 +17,12 @@ function App() {
   const [name] = useState(names[Math.floor(Math.random() * names.length)]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const { room } = useParams();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 新消息自动滚动到底部
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const socket = usePartySocket({
     party: "chat",
@@ -34,6 +40,7 @@ function App() {
               content: message.content,
               user: message.user,
               role: message.role,
+              timestamp: message.timestamp,
             },
           ]);
         } else {
@@ -48,6 +55,7 @@ function App() {
                 content: message.content,
                 user: message.user,
                 role: message.role,
+                timestamp: message.timestamp,
               })
               .concat(messages.slice(foundIndex + 1));
           });
@@ -61,6 +69,7 @@ function App() {
                   content: message.content,
                   user: message.user,
                   role: message.role,
+                  timestamp: message.timestamp,
                 }
               : m,
           ),
@@ -71,14 +80,30 @@ function App() {
     },
   });
 
+  const renderTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return (
+      <span className="timestamp">
+        {date.getHours().toString().padStart(2, "0")}:
+        {date.getMinutes().toString().padStart(2, "0")}
+      </span>
+    );
+  };
+
   return (
     <div className="chat container">
-      {messages.map((message) => (
-        <div key={message.id} className="row message">
-          <div className="two columns user">{message.user}</div>
-          <div className="ten columns">{message.content}</div>
-        </div>
-      ))}
+      <div className="chat-messages-list">
+        {messages.map((message) => (
+          <div key={message.id} className="row message">
+            <div className="two columns user">{message.user}</div>
+            <div className="ten columns message-content">
+              <span>{message.content}</span>
+              {renderTime(message.timestamp)}
+            </div>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
       <form
         className="row"
         onSubmit={(e) => {
@@ -91,6 +116,7 @@ function App() {
             content: content.value,
             user: name,
             role: "user",
+            timestamp: Date.now(),
           };
           setMessages((messages) => [...messages, chatMessage]);
           // we could broadcast the message here

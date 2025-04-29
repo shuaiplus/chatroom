@@ -3,6 +3,7 @@ export type ChatMessage = {
   content: string;
   user: string;
   role: "user" | "assistant";
+  timestamp: number; // 消息时间戳，毫秒
 };
 
 export type Message =
@@ -12,6 +13,7 @@ export type Message =
       content: string;
       user: string;
       role: "user" | "assistant";
+      timestamp: number;
     }
   | {
       type: "update";
@@ -19,6 +21,7 @@ export type Message =
       content: string;
       user: string;
       role: "user" | "assistant";
+      timestamp: number;
     }
   | {
       type: "all";

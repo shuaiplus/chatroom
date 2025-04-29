@@ -21,6 +21,21 @@ html {
   /* padding: 10px; */
 }
 
+.chat-messages-list {
+  height: 60vh;
+  min-height: 320px;
+  max-height: 70vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  margin-bottom: 16px;
+  /* background: #fff; */
+  border-radius: 0;
+  box-shadow: none;
+  width: 98%;
+  margin-left: 1%;
+}
+
 .message {
   margin-bottom: 10px;
 }
@@ -40,6 +55,38 @@ html {
   padding: 0;
   line-height: 18px;
   border: "none";
+}
+
+.message-content {
+  word-break: break-word;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  padding-right: 8px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.timestamp {
+  font-size: 0.75em;
+  color: #aaa;
+  margin-left: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 极简滚动条 */
+.chat-messages-list::-webkit-scrollbar {
+  width: 6px;
+  background: transparent;
+}
+.chat-messages-list::-webkit-scrollbar-thumb {
+  background: #eee;
+  border-radius: 3px;
+}
+.chat-messages-list {
+  scrollbar-width: thin;
+  scrollbar-color: #eee #fff;
 }
 
 .send-message {
