@@ -9,6 +9,7 @@ import {
   useParams,
 } from "react-router";
 import { nanoid } from "nanoid";
+import { generateRoomId } from "../shared";
 
 import { names, type ChatMessage, type Message } from "../shared";
 
@@ -123,9 +124,9 @@ function App() {
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
     <Routes>
-      <Route path="/" element={<Navigate to={`/${nanoid()}`} />} />
+      <Route path="/" element={<Navigate to={`/${generateRoomId()}`} replace />} />
       <Route path="/:room" element={<App />} />
-      <Route path="*" element={<Navigate to="/" />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   </BrowserRouter>,
 );

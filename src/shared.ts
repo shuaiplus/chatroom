@@ -53,3 +53,21 @@ export const names = [
   "Yvonne",
   "Zoe",
 ];
+
+export const simpleWords = [
+  "apple", "book", "cat", "dog", "egg", "fish", "go", "hat", "ice", "jam",
+  "kite", "leaf", "moon", "nest", "owl", "pen", "queen", "rain", "sun", "tree",
+  "umbrella", "van", "wolf", "xray", "yarn", "zebra", "star", "cloud", "river", "rock",
+  "sand", "mouse", "lamp", "door", "car", "bus", "train", "plane", "ship", "shoe",
+  "sock", "ring", "bell", "cake", "milk", "corn", "frog", "duck", "rose", "seed"
+];
+
+export function generateRoomId(): string {
+  // 随机抽取5个单词，顺序随机，用-连接
+  const arr = [...simpleWords];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.slice(0, 5).join("-");
+}
