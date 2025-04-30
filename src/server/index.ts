@@ -11,9 +11,20 @@ export class Chat extends Server<Env> {
   static options = { hibernate: true };
 
   messages = [] as ChatMessage[];
+  users: { [connId: string]: { name: string; joined: number } } = {};
 
   broadcastMessage(message: Message, exclude?: string[]) {
     this.broadcast(JSON.stringify(message), exclude);
+  }
+
+  broadcastUsers() {
+    // 在线用户排序：自己优先，后面按加入时间（最新在下）
+    const userList = Object.values(this.users)
+      .sort((a, b) => a.joined - b.joined)
+      .map(u => u.name);
+    this.broadcast(
+      JSON.stringify({ type: "users", users: userList })
+    );
   }
 
   onStart() {
@@ -38,6 +49,7 @@ export class Chat extends Server<Env> {
         messages: this.messages,
       } satisfies Message),
     );
+    // 等待客户端发送用户名
   }
 
   saveMessage(message: ChatMessage) {
@@ -66,14 +78,26 @@ export class Chat extends Server<Env> {
   }
 
   onMessage(connection: Connection, message: WSMessage) {
-    // let's broadcast the raw message to everyone else
-    this.broadcast(message);
-
-    // let's update our local messages store
-    const parsed = JSON.parse(message as string) as Message;
+    const parsed = JSON.parse(message as string);
+    if (parsed.type === "setName") {
+      // 记录/更新用户名和加入时间（只记录第一次加入时间）
+      if (!this.users[connection.id]) {
+        this.users[connection.id] = { name: parsed.name, joined: Date.now() };
+      } else {
+        this.users[connection.id].name = parsed.name;
+      }
+      this.broadcastUsers();
+      return;
+    }
     if (parsed.type === "add" || parsed.type === "update") {
       this.saveMessage(parsed);
     }
+    this.broadcast(message);
+  }
+
+  onClose(connection: Connection) {
+    delete this.users[connection.id];
+    this.broadcastUsers();
   }
 }
 

@@ -19,6 +19,7 @@ function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [error, setError] = useState(""); // 错误提示
   const [renaming, setRenaming] = useState(false); // 是否重命名中
+  const [users, setUsers] = useState<string[]>([]); // 在线用户列表
   const { room } = useParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -32,23 +33,35 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    if (userName && !renaming) {
+      // 每次设置用户名或重命名后，通知服务端
+      socket.send(JSON.stringify({ type: "setName", name: userName }));
+    }
+  }, [userName, renaming]);
+
   const socket = usePartySocket({
     party: "chat",
     room,
     onMessage: (evt) => {
-      const message = JSON.parse(evt.data as string) as Message;
-      if (message.type === "add") {
-        const foundIndex = messages.findIndex((m) => m.id === message.id);
+      const message = JSON.parse(evt.data as string);
+      if (message.type === "users") {
+        setUsers(message.users || []);
+        return;
+      }
+      const parsedMessage = message as Message;
+      if (parsedMessage.type === "add") {
+        const foundIndex = messages.findIndex((m) => m.id === parsedMessage.id);
         if (foundIndex === -1) {
           // probably someone else who added a message
           setMessages((messages) => [
             ...messages,
             {
-              id: message.id,
-              content: message.content,
-              user: message.user,
-              role: message.role,
-              timestamp: message.timestamp,
+              id: parsedMessage.id,
+              content: parsedMessage.content,
+              user: parsedMessage.user,
+              role: parsedMessage.role,
+              timestamp: parsedMessage.timestamp,
             },
           ]);
         } else {
@@ -59,32 +72,32 @@ function App() {
             return messages
               .slice(0, foundIndex)
               .concat({
-                id: message.id,
-                content: message.content,
-                user: message.user,
-                role: message.role,
-                timestamp: message.timestamp,
+                id: parsedMessage.id,
+                content: parsedMessage.content,
+                user: parsedMessage.user,
+                role: parsedMessage.role,
+                timestamp: parsedMessage.timestamp,
               })
               .concat(messages.slice(foundIndex + 1));
           });
         }
-      } else if (message.type === "update") {
+      } else if (parsedMessage.type === "update") {
         setMessages((messages) =>
           messages.map((m) =>
-            m.id === message.id
+            m.id === parsedMessage.id
               ? {
-                  id: message.id,
-                  content: message.content,
-                  user: message.user,
-                  role: message.role,
-                  timestamp: message.timestamp,
+                  id: parsedMessage.id,
+                  content: parsedMessage.content,
+                  user: parsedMessage.user,
+                  role: parsedMessage.role,
+                  timestamp: parsedMessage.timestamp,
                 }
               : m,
           ),
         );
       } else {
         // 历史消息，修正 timestamp 类型
-        setMessages(message.messages.map(m => ({
+        setMessages(parsedMessage.messages.map(m => ({
           ...m,
           timestamp: typeof m.timestamp === "string" ? Number(m.timestamp) : m.timestamp
         })));
@@ -107,106 +120,128 @@ function App() {
     return messages.some((m) => m.user === name);
   };
 
+  // 用户列表排序：自己在最上，后面是最新进来的
+  const sortedUsers = users.length
+    ? [userName, ...users.filter(u => u !== userName)]
+    : [userName];
+
   return (
-    <div className="chat container">
-      <div className="chat-messages-list">
-        {messages.map((message) => (
-          <div key={message.id} className="row message">
-            <div className="two columns user">{message.user}</div>
-            <div className="ten columns message-content">
-              <span>{message.content}</span>
+    <div className="chat container" style={{ display: "flex", flexDirection: "row" }}>
+      <div style={{ flex: 1 }}>
+        <div className="chat-messages-list">
+          {messages.map((message) => (
+            <div key={message.id} className="row message">
+              <div className="two columns user">{message.user}</div>
+              <div className="ten columns message-content">
+                <span>{message.content}</span>
+              </div>
             </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!userName || renaming) {
-            // 用户名输入或重命名
-            const name = input.trim();
-            if (name.length < 2 || name.length > 12) {
-              setError("用户名需2-12字符");
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+        <form
+          className="row"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!userName || renaming) {
+              // 用户名输入或重命名
+              const name = input.trim();
+              if (name.length < 2 || name.length > 12) {
+                setError("用户名需2-12字符");
+                return;
+              }
+              if (isNameDuplicate(name)) {
+                setError("用户名已存在");
+                return;
+              }
+              handleSetUserName(name);
+              setRenaming(false);
+              setInput("");
+              setError("");
               return;
             }
-            if (isNameDuplicate(name)) {
-              setError("用户名已存在");
-              return;
-            }
-            handleSetUserName(name);
-            setRenaming(false);
-            setInput("");
-            setError("");
-            return;
-          }
-          // 聊天消息发送
-          if (!input.trim()) return;
-          const chatMessage: ChatMessage = {
-            id: nanoid(8),
-            content: input,
-            user: userName,
-            role: "user",
-            timestamp: Date.now(),
-          };
-          setMessages((messages) => [...messages, chatMessage]);
-          socket.send(
-            JSON.stringify({
-              type: "add",
-              ...chatMessage,
-            } satisfies Message),
-          );
-          setInput("");
-        }}
-      >
-        {(!userName || renaming) ? (
-          <input
-            type="text"
-            name="content"
-            className="ten columns my-input-text"
-            placeholder="请输入用户名"
-            autoComplete="off"
-            value={input}
-            maxLength={12}
-            onChange={e => {
-              setInput(e.target.value);
-              setError("");
-            }}
-            style={{ maxWidth: 220 }}
-          />
-        ) : (
-          <input
-            type="text"
-            name="content"
-            className="ten columns my-input-text"
-            placeholder={`Hello ${userName}! Type a message...`}
-            autoComplete="off"
-            value={input}
-            onChange={e => {
-              setInput(e.target.value);
-              setError("");
-            }}
-            style={{ maxWidth: 220, overflowX: "auto", whiteSpace: "nowrap" }}
-          />
-        )}
-        <button type="submit" className="send-message two columns">
-          {userName && !renaming ? "发送" : "确定"}
-        </button>
-        <button
-          type="button"
-          className="send-message two columns"
-          style={{ marginLeft: 8 }}
-          onClick={() => {
-            setRenaming(true);
+            // 聊天消息发送
+            if (!input.trim()) return;
+            const chatMessage: ChatMessage = {
+              id: nanoid(8),
+              content: input,
+              user: userName,
+              role: "user",
+              timestamp: Date.now(),
+            };
+            setMessages((messages) => [...messages, chatMessage]);
+            socket.send(
+              JSON.stringify({
+                type: "add",
+                ...chatMessage,
+              } satisfies Message),
+            );
             setInput("");
           }}
-          disabled={!userName || renaming}
         >
-          重命名
-        </button>
-        {error && <div style={{ color: "red", marginTop: 4 }}>{error}</div>}
-      </form>
+          {(!userName || renaming) ? (
+            <input
+              type="text"
+              name="content"
+              className="ten columns my-input-text"
+              placeholder="请输入用户名"
+              autoComplete="off"
+              value={input}
+              maxLength={12}
+              onChange={e => {
+                setInput(e.target.value);
+                setError("");
+              }}
+              style={{ maxWidth: 220 }}
+            />
+          ) : (
+            <input
+              type="text"
+              name="content"
+              className="ten columns my-input-text"
+              placeholder={`Hello ${userName}! Type a message...`}
+              autoComplete="off"
+              value={input}
+              onChange={e => {
+                setInput(e.target.value);
+                setError("");
+              }}
+              style={{ maxWidth: 220, overflowX: "auto", whiteSpace: "nowrap" }}
+            />
+          )}
+          <button type="submit" className="send-message two columns">
+            {userName && !renaming ? "发送" : "确定"}
+          </button>
+          <button
+            type="button"
+            className="send-message two columns"
+            style={{ marginLeft: 8 }}
+            onClick={() => {
+              setRenaming(true);
+              setInput("");
+            }}
+            disabled={!userName || renaming}
+          >
+            重命名
+          </button>
+          {error && <div style={{ color: "red", marginTop: 4 }}>{error}</div>}
+        </form>
+      </div>
+      <div style={{ width: 160, marginLeft: 12, overflowY: "auto", maxHeight: "70vh", borderLeft: "1px solid #eee", paddingLeft: 8 }}>
+        <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 15 }}>在线用户</div>
+        <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+          {sortedUsers.map((u, i) => (
+            <li key={u} style={{
+              fontWeight: u === userName ? 700 : 400,
+              color: u === userName ? "#007aff" : undefined,
+              marginBottom: 4,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap"
+            }}>{u}</li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
