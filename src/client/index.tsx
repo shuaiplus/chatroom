@@ -160,21 +160,36 @@ function App() {
           setInput("");
         }}
       >
-        <input
-          type="text"
-          name="content"
-          className="ten columns my-input-text"
-          placeholder={userName && !renaming ? `Hello ${userName}! Type a message...` : "请输入用户名"}
-          autoComplete="off"
-          value={input}
-          maxLength={12}
-          onChange={e => {
-            setInput(e.target.value);
-            setError("");
-          }}
-          disabled={(!userName && !renaming) ? false : (userName && !renaming ? false : false)}
-          style={{ maxWidth: 220 }}
-        />
+        {(!userName || renaming) ? (
+          <input
+            type="text"
+            name="content"
+            className="ten columns my-input-text"
+            placeholder="请输入用户名"
+            autoComplete="off"
+            value={input}
+            maxLength={12}
+            onChange={e => {
+              setInput(e.target.value);
+              setError("");
+            }}
+            style={{ maxWidth: 220 }}
+          />
+        ) : (
+          <input
+            type="text"
+            name="content"
+            className="ten columns my-input-text"
+            placeholder={`Hello ${userName}! Type a message...`}
+            autoComplete="off"
+            value={input}
+            onChange={e => {
+              setInput(e.target.value);
+              setError("");
+            }}
+            style={{ maxWidth: 220, overflowX: "auto", whiteSpace: "nowrap" }}
+          />
+        )}
         <button type="submit" className="send-message two columns">
           {userName && !renaming ? "发送" : "确定"}
         </button>
