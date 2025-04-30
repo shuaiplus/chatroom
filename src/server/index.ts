@@ -22,9 +22,16 @@ export class Chat extends Server<Env> {
 
   broadcastUsers() {
     // 在线用户排序：自己优先，后面按加入时间（最新在下）
+    // 去重，只保留每个名字的第一个连接
+    const seen = new Set<string>();
     const userList = Object.values(this.users)
       .sort((a, b) => a.joined - b.joined)
-      .map(u => u.name);
+      .map(u => u.name)
+      .filter(name => {
+        if (seen.has(name)) return false;
+        seen.add(name);
+        return true;
+      });
     this.broadcast(
       JSON.stringify({ type: "users", users: userList })
     );
@@ -122,16 +129,17 @@ export class Chat extends Server<Env> {
 
   onClose(connection: Connection) {
     const user = this.users[connection.id]?.name;
+    // 先删除用户
+    delete this.users[connection.id];
     if (user) {
-      // 只在最后一个同名连接断开时才广播离开
-      const isLastLeave = Object.values(this.users).filter(u => u.name === user).length === 1;
+      // 删除后判断是否是最后一个同名用户
+      const isLastLeave = !Object.values(this.users).some(u => u.name === user);
       if (isLastLeave) {
         this.broadcast(
           JSON.stringify({ type: "system", event: "leave", user })
         );
       }
     }
-    delete this.users[connection.id];
     this.broadcastUsers();
   }
 }

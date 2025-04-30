@@ -130,15 +130,13 @@ function App() {
     );
   };
 
-  // 检查用户名是否重复
+  // 检查用户名是否重复，基于 users 列表
   const isNameDuplicate = (name: string) => {
-    return messages.some((m) => m.user === name);
+    return users.includes(name);
   };
 
-  // 用户列表排序：自己在最上，后面是最新进来的
-  const sortedUsers = users.length
-    ? [userName, ...users.filter(u => u !== userName)]
-    : [userName];
+  // 用户列表排序：直接用服务端 users（已去重），自己高亮
+  const sortedUsers = users;
 
   return (
     <div className="chat container" style={{ display: "flex", flexDirection: "row" }}>
@@ -147,7 +145,7 @@ function App() {
           {/* 聊天消息 */}
           {messages.map((message) => (
             <div key={message.id} className="row message">
-              {message.role === "system" ? (
+              {message.role !== "user" && message.role !== "assistant" ? (
                 <div className="twelve columns" style={{ textAlign: "center", color: "#e74c3c", fontWeight: 500, margin: "6px 0" }}>
                   <span dangerouslySetInnerHTML={{ __html: message.content }} />
                 </div>
