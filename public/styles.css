@@ -96,3 +96,18 @@ html {
 .my-input-text::placeholder {
   color: #ccc;
 }
+
+/* 聊天操作按钮（发送、重命名、加密）极简风格，左侧留2px，其余无留空，按钮等宽等高 */
+.chatroom-btn {
+	width: 55px;
+	margin-left: 6px;
+	margin-right: 0;
+	margin-top: 0;
+	margin-bottom: 0;
+	padding: 0;
+}
+.chatroom-btn:disabled {
+	color: #aaa;
+	border-color: #eee;
+	cursor: not-allowed;
+}

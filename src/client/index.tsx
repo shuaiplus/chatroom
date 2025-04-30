@@ -19,6 +19,7 @@ function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [error, setError] = useState(""); // 错误提示
   const [renaming, setRenaming] = useState(false); // 是否重命名中
+  const [encrypting, setEncrypting] = useState(false); // 是否正在设置密码
   const [users, setUsers] = useState<string[]>([]); // 在线用户列表
   const { room } = useParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -166,6 +167,13 @@ function App() {
           className="row"
           onSubmit={(e) => {
             e.preventDefault();
+            if (encrypting) {
+              // 设置密码模式，后续步骤会实现密码逻辑
+              // 这里只做UI切换，后续实现保存和发送密码
+              setEncrypting(false);
+              setInput("");
+              return;
+            }
             if (!userName || renaming) {
               // 用户名输入或重命名
               const name = input.trim();
@@ -215,37 +223,47 @@ function App() {
                 setInput(e.target.value);
                 setError("");
               }}
-              style={{ maxWidth: 220 }}
+              style={{ maxWidth: 300 }}
             />
           ) : (
             <input
-              type="text"
+              type={encrypting ? "password" : "text"}
               name="content"
               className="ten columns my-input-text"
-              placeholder={`Hello ${userName}! Type a message...`}
+              placeholder={encrypting ? "请输入房间密码" : `Hello ${userName}! Type a message...`}
               autoComplete="off"
               value={input}
               onChange={e => {
                 setInput(e.target.value);
                 setError("");
               }}
-              style={{ maxWidth: 220, overflowX: "auto", whiteSpace: "nowrap" }}
+              style={{ maxWidth: 300, overflowX: "auto", whiteSpace: "nowrap" }}
             />
           )}
-          <button type="submit" className="send-message two columns">
-            {userName && !renaming ? "发送" : "确定"}
+          <button type="submit" className="chatroom-btn">
+            {userName && !renaming && !encrypting ? "发送" : "确定"}
           </button>
           <button
             type="button"
-            className="send-message two columns"
-            style={{ marginLeft: 8 }}
+            className="chatroom-btn"
             onClick={() => {
               setRenaming(true);
               setInput("");
             }}
-            disabled={!userName || renaming}
+            disabled={!userName || renaming || encrypting}
           >
             重命名
+          </button>
+          <button
+            type="button"
+            className="chatroom-btn"
+            onClick={() => {
+              setEncrypting(true);
+              setInput("");
+            }}
+            disabled={encrypting || !userName || renaming}
+          >
+            加密
           </button>
           {error && <div style={{ color: "red", marginTop: 4 }}>{error}</div>}
         </form>

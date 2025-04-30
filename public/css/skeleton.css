@@ -86,7 +86,7 @@
     width: 56.6666666667%;
   }
   .eight.columns {
-    width: 65.3333333333%;
+    width: 70%;
   }
   .nine.columns {
     width: 74%;
@@ -103,10 +103,10 @@
   }
 
   .one-third.column {
-    width: 30.6666666667%;
+    width: 25%;
   }
   .two-thirds.column {
-    width: 65.3333333333%;
+    width: 70%;
   }
 
   .one-half.column {
