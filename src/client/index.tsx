@@ -11,13 +11,21 @@ import {
 import { nanoid } from "nanoid";
 import { generateRoomId } from "../shared";
 
-import { names, type ChatMessage, type Message } from "../shared";
+import { type ChatMessage, type Message } from "../shared";
 
 function App() {
-  const [name] = useState(names[Math.floor(Math.random() * names.length)]);
+  const [userName, setUserName] = useState(() => localStorage.getItem("chat_username") || ""); // 用户名
+  const [input, setInput] = useState(""); // 输入框内容
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [error, setError] = useState(""); // 错误提示
+  const [renaming, setRenaming] = useState(false); // 是否重命名中
   const { room } = useParams();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const handleSetUserName = (name: string) => {
+    setUserName(name);
+    localStorage.setItem("chat_username", name);
+  };
 
   // 新消息自动滚动到底部
   useEffect(() => {
@@ -75,7 +83,11 @@ function App() {
           ),
         );
       } else {
-        setMessages(message.messages);
+        // 历史消息，修正 timestamp 类型
+        setMessages(message.messages.map(m => ({
+          ...m,
+          timestamp: typeof m.timestamp === "string" ? Number(m.timestamp) : m.timestamp
+        })));
       }
     },
   });
@@ -90,6 +102,11 @@ function App() {
     );
   };
 
+  // 检查用户名是否重复
+  const isNameDuplicate = (name: string) => {
+    return messages.some((m) => m.user === name);
+  };
+
   return (
     <div className="chat container">
       <div className="chat-messages-list">
@@ -98,7 +115,6 @@ function App() {
             <div className="two columns user">{message.user}</div>
             <div className="ten columns message-content">
               <span>{message.content}</span>
-              {renderTime(message.timestamp)}
             </div>
           </div>
         ))}
@@ -108,39 +124,73 @@ function App() {
         className="row"
         onSubmit={(e) => {
           e.preventDefault();
-          const content = e.currentTarget.elements.namedItem(
-            "content",
-          ) as HTMLInputElement;
+          if (!userName || renaming) {
+            // 用户名输入或重命名
+            const name = input.trim();
+            if (name.length < 2 || name.length > 12) {
+              setError("用户名需2-12字符");
+              return;
+            }
+            if (isNameDuplicate(name)) {
+              setError("用户名已存在");
+              return;
+            }
+            handleSetUserName(name);
+            setRenaming(false);
+            setInput("");
+            setError("");
+            return;
+          }
+          // 聊天消息发送
+          if (!input.trim()) return;
           const chatMessage: ChatMessage = {
             id: nanoid(8),
-            content: content.value,
-            user: name,
+            content: input,
+            user: userName,
             role: "user",
             timestamp: Date.now(),
           };
           setMessages((messages) => [...messages, chatMessage]);
-          // we could broadcast the message here
-
           socket.send(
             JSON.stringify({
               type: "add",
               ...chatMessage,
             } satisfies Message),
           );
-
-          content.value = "";
+          setInput("");
         }}
       >
         <input
           type="text"
           name="content"
           className="ten columns my-input-text"
-          placeholder={`Hello ${name}! Type a message...`}
+          placeholder={userName && !renaming ? `Hello ${userName}! Type a message...` : "请输入用户名"}
           autoComplete="off"
+          value={input}
+          maxLength={12}
+          onChange={e => {
+            setInput(e.target.value);
+            setError("");
+          }}
+          disabled={(!userName && !renaming) ? false : (userName && !renaming ? false : false)}
+          style={{ maxWidth: 220 }}
         />
         <button type="submit" className="send-message two columns">
-          Send
+          {userName && !renaming ? "发送" : "确定"}
         </button>
+        <button
+          type="button"
+          className="send-message two columns"
+          style={{ marginLeft: 8 }}
+          onClick={() => {
+            setRenaming(true);
+            setInput("");
+          }}
+          disabled={!userName || renaming}
+        >
+          重命名
+        </button>
+        {error && <div style={{ color: "red", marginTop: 4 }}>{error}</div>}
       </form>
     </div>
   );
