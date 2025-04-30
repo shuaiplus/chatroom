@@ -23,7 +23,7 @@ html {
 
 .chat-messages-list {
   height: 60vh;
-  min-height: 320px;
+  min-height: 500px;
   max-height: 70vh;
   overflow-y: auto;
   overflow-x: hidden;
@@ -37,7 +37,7 @@ html {
 }
 
 .message {
-  margin-bottom: 10px;
+  margin-bottom: 5px;
 }
 
 .message .user {

@@ -49,6 +49,20 @@ function App() {
         setUsers(message.users || []);
         return;
       }
+      if (message.type === "system") {
+        // 系统事件作为特殊聊天消息插入
+        setMessages((messages) => [
+          ...messages,
+          {
+            id: `${message.event}-${message.user}-${Date.now()}`,
+            content: `<sys>${message.event === "join" ? "<b>" + message.user + "</b> joined the chatroom" : "<b>" + message.user + "</b> left the chatroom"}</sys>`,
+            user: "",
+            role: "system",
+            timestamp: Date.now(),
+          },
+        ]);
+        return;
+      }
       const parsedMessage = message as Message;
       if (parsedMessage.type === "add") {
         const foundIndex = messages.findIndex((m) => m.id === parsedMessage.id);
@@ -129,12 +143,21 @@ function App() {
     <div className="chat container" style={{ display: "flex", flexDirection: "row" }}>
       <div style={{ flex: 1 }}>
         <div className="chat-messages-list">
+          {/* 聊天消息 */}
           {messages.map((message) => (
             <div key={message.id} className="row message">
-              <div className="two columns user">{message.user}</div>
-              <div className="ten columns message-content">
-                <span>{message.content}</span>
-              </div>
+              {message.role === "system" ? (
+                <div className="twelve columns" style={{ textAlign: "center", color: "#e74c3c", fontWeight: 500, margin: "6px 0" }}>
+                  <span dangerouslySetInnerHTML={{ __html: message.content }} />
+                </div>
+              ) : (
+                <>
+                  <div className="two columns user">{message.user}</div>
+                  <div className="ten columns message-content">
+                    <span>{message.content}</span>
+                  </div>
+                </>
+              )}
             </div>
           ))}
           <div ref={messagesEndRef} />
@@ -227,7 +250,7 @@ function App() {
           {error && <div style={{ color: "red", marginTop: 4 }}>{error}</div>}
         </form>
       </div>
-      <div style={{ width: 160, marginLeft: 12, overflowY: "auto", maxHeight: "70vh", borderLeft: "1px solid #eee", paddingLeft: 8 }}>
+      <div style={{ width: 160, marginLeft: 12, overflowY: "auto", maxHeight: "70vh", paddingLeft: 8 }}>
         <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 15 }}>在线用户</div>
         <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {sortedUsers.map((u, i) => (

@@ -7,6 +7,9 @@ import {
 
 import type { ChatMessage, Message } from "../shared";
 
+// 新增：系统事件消息类型
+type SystemEvent = { type: "system", event: "join" | "leave"; user: string };
+
 export class Chat extends Server<Env> {
   static options = { hibernate: true };
 
@@ -80,12 +83,34 @@ export class Chat extends Server<Env> {
   onMessage(connection: Connection, message: WSMessage) {
     const parsed = JSON.parse(message as string);
     if (parsed.type === "setName") {
-      // 记录/更新用户名和加入时间（只记录第一次加入时间）
+      const prevName = this.users[connection.id]?.name;
+      const isFirstJoin = !Object.values(this.users).some(u => u.name === parsed.name);
       if (!this.users[connection.id]) {
         this.users[connection.id] = { name: parsed.name, joined: Date.now() };
-      } else {
+        if (isFirstJoin) {
+          this.broadcast(
+            JSON.stringify({ type: "system", event: "join", user: parsed.name })
+          );
+        }
+      } else if (prevName !== parsed.name) {
+        // 重命名，先判断新旧名字
+        const isNewNameFirstJoin = !Object.values(this.users).some(u => u.name === parsed.name);
+        const isOldNameLastLeave = Object.values(this.users).filter(u => u.name === prevName).length === 1;
+        if (isOldNameLastLeave) {
+          this.broadcast(
+            JSON.stringify({ type: "system", event: "leave", user: prevName })
+          );
+        }
+        if (isNewNameFirstJoin) {
+          this.broadcast(
+            JSON.stringify({ type: "system", event: "join", user: parsed.name })
+          );
+        }
         this.users[connection.id].name = parsed.name;
+        this.broadcastUsers();
+        return;
       }
+      this.users[connection.id].name = parsed.name;
       this.broadcastUsers();
       return;
     }
@@ -96,6 +121,16 @@ export class Chat extends Server<Env> {
   }
 
   onClose(connection: Connection) {
+    const user = this.users[connection.id]?.name;
+    if (user) {
+      // 只在最后一个同名连接断开时才广播离开
+      const isLastLeave = Object.values(this.users).filter(u => u.name === user).length === 1;
+      if (isLastLeave) {
+        this.broadcast(
+          JSON.stringify({ type: "system", event: "leave", user })
+        );
+      }
+    }
     delete this.users[connection.id];
     this.broadcastUsers();
   }
